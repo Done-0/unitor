@@ -2,28 +2,17 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
+import { createHash } from 'crypto';
 
 const RESET = '\x1b[0m';
 const DIM = '\x1b[2m';
-const BOLD = '\x1b[1m';
-
 const CYAN = '\x1b[36m';
 const BRIGHT_CYAN = '\x1b[96m';
-
-const GREEN = '\x1b[32m';
 const BRIGHT_GREEN = '\x1b[92m';
-const YELLOW = '\x1b[33m';
 const BRIGHT_YELLOW = '\x1b[93m';
-const RED = '\x1b[31m';
 const BRIGHT_RED = '\x1b[91m';
-
-const BLUE = '\x1b[34m';
 const BRIGHT_BLUE = '\x1b[94m';
-
-function truncate(text, maxLen) {
-  if (!text) return '';
-  return text.length > maxLen ? text.substring(0, maxLen - 3) + '...' : text;
-}
 
 async function main() {
   let stdinData = '';
@@ -41,32 +30,35 @@ async function main() {
   if (!stdin?.cwd) return;
 
   const termWidth = stdin.terminal_width || 80;
-  const stateFile = join(stdin.cwd, '.unitor', 'state.json');
 
-  if (!existsSync(stateFile)) {
-    process.stdout.write(`${BRIGHT_CYAN}Unitor${RESET} ${DIM}│${RESET} claude\n`);
-    return;
-  }
+  const hash = createHash('sha256').update(stdin.cwd).digest('hex').slice(0, 16);
+  const pluginDataDir = process.env.CLAUDE_PLUGIN_DATA;
+  const stateRoot = pluginDataDir ? join(pluginDataDir, 'state') : join(homedir(), '.cache', 'claude', 'plugins', 'unitor');
+  const stateFile = join(stateRoot, `unitor-${hash}`, 'state.json');
 
   let state;
   try {
-    state = JSON.parse(readFileSync(stateFile, 'utf8'));
+    if (existsSync(stateFile)) {
+      state = JSON.parse(readFileSync(stateFile, 'utf8'));
+    }
   } catch {
-    process.stdout.write(`${BRIGHT_CYAN}Unitor${RESET} ${DIM}│${RESET} claude\n`);
-    return;
   }
 
   const lines = [];
 
   const providers = state?.config?.providers;
   if (providers) {
-    const status = Object.entries(providers)
-      .filter(([id]) => id !== 'claude')
-      .map(([id, cfg]) => cfg.enabled ? `${CYAN}${id}${RESET}` : `${DIM}${id}${RESET}`)
-      .join(` ${DIM}·${RESET} `);
-    lines.push(status ? `${BRIGHT_CYAN}Unitor${RESET} ${DIM}│${RESET} ${status}` : `${BRIGHT_CYAN}Unitor${RESET} ${DIM}│${RESET} claude`);
+    const enabledProviders = Object.entries(providers)
+      .filter(([id, cfg]) => cfg.enabled)
+      .map(([id]) => id);
+
+    const status = enabledProviders.length > 0
+      ? enabledProviders.map(id => `${CYAN}${id}${RESET}`).join(` ${DIM}·${RESET} `)
+      : `${CYAN}claude${RESET}`;
+
+    lines.push(`${BRIGHT_CYAN}Unitor${RESET} ${DIM}│${RESET} ${status}`);
   } else {
-    lines.push(`${BRIGHT_CYAN}Unitor${RESET} ${DIM}│${RESET} claude`);
+    lines.push(`${BRIGHT_CYAN}Unitor${RESET} ${DIM}│${RESET} ${CYAN}claude${RESET} ${DIM}·${RESET} ${CYAN}codex${RESET} ${DIM}·${RESET} ${CYAN}gemini${RESET}`);
   }
 
   const sessions = state?.sessions;
@@ -91,7 +83,9 @@ async function main() {
 
       const fixedWidth = sessionNum.length + participants.length + 3 + phase.length + 3;
       const previewMaxWidth = Math.max(0, termWidth - fixedWidth - 10);
-      const preview = lastMsg && previewMaxWidth > 20 ? truncate(lastMsg.content, previewMaxWidth) : '';
+      const preview = lastMsg && previewMaxWidth > 20
+        ? (lastMsg.content.length > previewMaxWidth ? lastMsg.content.substring(0, previewMaxWidth - 3) + '...' : lastMsg.content)
+        : '';
 
       lines.push(`${sessionNum ? `${DIM}${sessionNum}${RESET}` : ''}${CYAN}${participants}${RESET} ${DIM}${sep}${RESET} ${phaseColor}${phase}${RESET}${preview ? ` ${DIM}${sep}${RESET} ${DIM}${preview}${RESET}` : ''}`);
     });
@@ -116,7 +110,9 @@ async function main() {
 
         const fixedWidth = 2 + provider.length + 3 + time.length + 3;
         const previewMaxWidth = Math.max(0, termWidth - fixedWidth - 10);
-        const preview = previewMaxWidth > 20 ? truncate(task.description, previewMaxWidth) : '';
+        const preview = previewMaxWidth > 20
+          ? (task.description.length > previewMaxWidth ? task.description.substring(0, previewMaxWidth - 3) + '...' : task.description)
+          : '';
 
         lines.push(`${icon} ${CYAN}${provider}${RESET} ${DIM}${sep}${RESET} ${DIM}${time}${RESET}${preview ? ` ${DIM}${sep}${RESET} ${DIM}${preview}${RESET}` : ''}`);
       });
@@ -127,12 +123,3 @@ async function main() {
 }
 
 main();
-
-
-
-
-
-
-
-
-
