@@ -1,0 +1,27 @@
+{
+  "name": "unitor",
+  "version": "0.1.0",
+  "description": "Multi-AI collaboration plugin for Claude Code - orchestrates Codex, Gemini, and Claude as a team",
+  "type": "module",
+  "main": "plugins/unitor/scripts/unitor-runtime.mjs",
+  "scripts": {
+    "test": "node --test tests/**/*.test.mjs"
+  },
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "ai-orchestration",
+    "multi-ai",
+    "ai-collaboration",
+    "task-routing",
+    "gemini",
+    "codex",
+    "statusline",
+    "ai-team"
+  ],
+  "author": "Done-0",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

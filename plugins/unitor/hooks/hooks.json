@@ -1,0 +1,9 @@
+{
+  "SessionStart": [
+    {
+      "type": "command",
+      "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs\" health-check",
+      "timeout": 5000
+    }
+  ]
+}

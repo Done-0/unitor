@@ -1,0 +1,21 @@
+{
+  "name": "unitor",
+  "owner": {
+    "name": "Done-0"
+  },
+  "metadata": {
+    "description": "Multi-AI collaboration plugin - orchestrates Codex, Gemini, and Claude as a team for complex software projects",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "unitor",
+      "description": "Multi-AI collaboration with real-time statusline - route tasks to specialists or orchestrate team discussions",
+      "version": "0.1.0",
+      "author": {
+        "name": "Done-0"
+      },
+      "source": "./plugins/unitor"
+    }
+  ]
+}
