@@ -1,78 +1,63 @@
 ---
 name: collaboration
-description: Multi-domain task detection and Claude orchestration
+description: Multi-AI collaboration orchestration guidance
 user-invocable: false
 ---
 
 # Collaboration Skill
 
-Guidance for understanding how Unitor handles multi-domain tasks.
+Guidance for orchestrating multi-AI collaboration in Unitor.
 
 ## When to Use Collaboration
 
-Use the collaboration command when a task spans multiple domains:
-- Frontend + Backend (e.g., "Build user profile with API and React UI")
-- Backend + Database (e.g., "Create registration endpoint with user table")
-- Frontend + Backend + Database (e.g., "Implement full authentication system")
+Use `/unitor:collab` when a task requires multiple AI specialists working together.
 
-Use the collaboration command:
+## How It Works
+
+You (Claude) are the coordinator. The workflow:
+
+1. **Analyze the task** - Understand what needs to be built
+2. **Define roles** - Determine required specialists (not limited to frontend/backend/database)
+3. **Write role descriptions** - Create specific, task-focused descriptions
+4. **Create roles JSON** - Write to temporary file
+5. **Execute** - Call runtime with roles file
+6. **Report** - Present results to user
+
+## Role Descriptions
+
+Write task-specific descriptions (not generic templates):
+
+**Good:**
+- "JWT auth API - implement /login, /register, /refresh with jsonwebtoken, bcrypt hashing, token validation middleware"
+- "React login UI - build login/signup forms with email/password validation, error display, loading states"
+
+**Bad:**
+- "Backend developer"
+- "Frontend specialist"
+
+## Example
+
+Task: "Build user authentication"
+
+Roles JSON:
+```json
+{
+  "roles": {
+    "auth-api": "JWT authentication API - implement login/register/refresh endpoints with token generation, validation middleware, bcrypt password hashing",
+    "login-ui": "React authentication UI - build login/signup forms with validation, error handling, loading states, token storage",
+    "user-db": "User database - design users table with email, password_hash, created_at, sessions table for refresh tokens"
+  }
+}
+```
+
+Runtime call:
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs" collab "task description"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs" collab /tmp/roles.json "build user authentication"
 ```
 
-## How Collaboration Works
+## Your Role
 
-The runtime uses a simple detection mechanism:
-
-1. **Task Analysis**: Extract tags from description
-   - Detects: `backend-api`, `frontend-ui`, `database`
-   - Counts how many domains are present
-
-2. **Decision**:
-   - If < 2 domains → Falls back to regular routing (single-domain task)
-   - If ≥ 2 domains → Hands task to Claude for orchestration
-
-3. **Claude Orchestration**: When multi-domain detected
-   - Runtime returns control to Claude
-   - Claude breaks down the task as needed
-   - Claude coordinates execution across domains
-   - Claude ensures consistency between components
-
-## Example Flow
-
-```
-User: "Build user profile page with backend API and React frontend"
-
-Runtime automatically:
-1. Analyzes task → Detects: backend-api, frontend-ui
-2. Counts domains → 2 domains detected
-3. Returns: "Multi-domain task requires orchestration by Claude"
-4. Claude takes over and orchestrates the full implementation
-
-You see:
-- Domain detection summary
-- Message that Claude will handle orchestration
-- Claude then executes the multi-domain task
-```
-
-## Your Role in Collaboration
-
-As Claude, you should:
-1. **Invoke collaboration**: When task spans multiple domains
-2. **Execute orchestration**: When runtime hands task back to you
-3. **Coordinate components**: Ensure consistency across domains
-
-You are responsible for:
-- Breaking down multi-domain tasks into subtasks
-- Executing or delegating each subtask
-- Ensuring interface consistency (API contracts, data models)
-- Integrating results
-
-## When NOT to Collaborate
-
-Don't use collaboration for:
-- Single-domain tasks (use regular routing)
-- Architecture/design tasks (execute directly)
-- Simple tasks (execute directly)
-
-The runtime will automatically fall back to regular routing if only one domain is detected.
+- Analyze each task individually
+- Generate specific role descriptions
+- No hardcoded templates or rules
+- Each task is unique

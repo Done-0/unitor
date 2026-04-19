@@ -25,7 +25,8 @@ Before forwarding, analyze the task to determine the appropriate command:
 
 - **Multi-domain tasks**: Tasks spanning multiple domains
   - Examples: "Build user profile with API and React UI", "Implement registration with backend and frontend"
-  - Forward to `collab` command
+  - These require coordination - do NOT forward to runtime
+  - Main Claude thread should handle as coordinator
 
 - **Architecture/security/complex tasks**: Keep in main Claude thread
   - Examples: "Refactor authentication architecture", "Design security model"
@@ -38,10 +39,10 @@ For single-domain tasks, run:
 node "${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs" route "task description"
 ```
 
-For multi-domain tasks, run:
-```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs" collab "task description"
-```
+For multi-domain tasks:
+- Do NOT forward to runtime
+- Return control to main Claude thread
+- Main Claude will act as coordinator using `/unitor:collab` command
 
 Output handling:
 
@@ -51,11 +52,6 @@ Output handling:
 
 - If the command outputs "Falling back to Claude...":
   - The provider failed, you should now execute the task.
-
-- If the command outputs "Multi-domain task detected" followed by collaboration output:
-  - The system has autonomously orchestrated multiple AIs.
-  - Report the collaboration summary and created files to the user.
-  - Do NOT manually orchestrate - it's already done.
 
 - If the command outputs provider results:
   - Present the output to the user as-is.

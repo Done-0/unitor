@@ -5,35 +5,42 @@ export class CollaborationCoordinator {
     this.providers = providers;
   }
 
-  async start(task, decomposition) {
+  async start(task, decomposition, customRoles = {}) {
     const sessionId = `collab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const participants = { claude: { role: 'coordinator', provider: null } };
-    const roleMap = { frontend: 'frontend', backend: 'backend', database: 'backend' };
-    const descriptions = {
-      frontend: 'Build UI components and interface with React',
-      backend: 'Implement API endpoints and routes',
-      database: 'Design database schema and queries'
-    };
+    const participants = {};
+    const domainOrder = [];
 
     for (const [domain, needed] of Object.entries(decomposition.domains)) {
       if (!needed || domain === 'other') continue;
-      const role = roleMap[domain];
-      if (!role) continue;
 
-      const decision = this.router.route({ description: descriptions[domain] || `${role} development` }, this.config);
+      const roleDescription = customRoles[domain] || `${domain} specialist for: ${task.description}`;
+      const decision = this.router.route({ description: roleDescription }, this.config);
 
-      if (decision.provider !== 'claude' && this.providers[decision.provider]) {
+      if (this.providers[decision.provider]) {
         const providerId = decision.provider;
-        if (!Object.values(participants).some(p => p.provider === this.providers[providerId])) {
-          participants[providerId] = { role, provider: this.providers[providerId] };
+        const roleKey = `${providerId}-${domain}`;
+
+        if (!participants[roleKey]) {
+          participants[roleKey] = {
+            id: providerId,
+            role: roleDescription,
+            domain: domain,
+            provider: this.providers[providerId]
+          };
+          domainOrder.push(roleKey);
         }
       }
+    }
+
+    if (Object.keys(participants).length === 0) {
+      throw new Error("No available providers for the specified roles. Check provider configuration.");
     }
 
     const conversation = {
       id: sessionId,
       task,
       participants,
+      participantOrder: domainOrder,
       messages: [],
       consensusReached: false,
       interfaces: { endpoints: [], schemas: {} },
@@ -42,22 +49,22 @@ export class CollaborationCoordinator {
     };
 
     console.log(`\nCollaboration started`);
-    console.log(`Participants: ${Object.keys(participants).filter(id => id !== 'claude').join(', ')}\n`);
+    console.log(`Participants: ${Object.keys(participants).join(', ')}\n`);
 
     await this.discuss(conversation);
 
-    if (conversation.interfaces?.endpoints?.length > 0) {
+    if (conversation.consensusReached) {
       await this.implement(conversation);
       const verified = await this.verify(conversation);
       return { conversation, verified };
     } else {
-      console.log(`\nDiscussion complete\n`);
-      return { conversation, verified: true };
+      console.log(`\nDiscussion ended without consensus\n`);
+      return { conversation, verified: false };
     }
   }
 
   async discuss(conversation) {
-    const participantIds = Object.keys(conversation.participants).filter(id => id !== 'claude');
+    const participantIds = conversation.participantOrder;
     console.log("Discussion:\n");
 
     let round = 0;
@@ -68,16 +75,18 @@ export class CollaborationCoordinator {
     while (true) {
       round++;
       const beforeMessages = conversation.messages.length;
-      const historyBeforeRound = conversation.messages.slice(-20).map(m => `[${m.from}] ${m.content}`).join('\n');
+      const historyBeforeRound = conversation.messages.map(m => `[${m.from}] ${m.content}`).join('\n');
       const roundResponses = [];
 
       for (const pid of participantIds) {
         if (totalProviderCalls >= maxProviderCalls) {
           console.log(`\nReached cost limit (${maxProviderCalls} calls)\n`);
+          conversation.consensusReached = true;
           return;
         }
 
-        const prompt = `You are ${pid} (${conversation.participants[pid].role}) in a multi-AI team collaboration.
+        const participant = conversation.participants[pid];
+        const prompt = `You are ${participant.id} working on ${participant.role} in a multi-AI team collaboration.
 
 Task: ${conversation.task.description}
 
@@ -113,29 +122,22 @@ Respond naturally to move the discussion forward. Share what you need, what you 
 
       conversation.messages.push(...roundResponses);
 
-      const history = conversation.messages.map(m => `[${m.from}] ${m.content}`).join('\n');
       const allParticipantsSpoke = participantIds.every(pid =>
         conversation.messages.some(m => m.from === pid && !m.content.includes('temporarily unavailable'))
       );
-      const recentMessages = conversation.messages.slice(-participantIds.length * 2);
-      const hasAgreementSignals = recentMessages.some(m =>
-        /\b(agree|will implement|I'll create|ready to|let's proceed|sounds good|confirmed)\b/i.test(m.content)
-      );
-      const hasQuestions = recentMessages.some(m =>
-        /\?/.test(m.content) && !m.content.includes('temporarily unavailable')
-      );
 
-      totalProviderCalls++;
-
-      if (history.length >= 50 && allParticipantsSpoke && hasAgreementSignals && !hasQuestions) {
-        console.log("Consensus reached\n");
+      if (allParticipantsSpoke && round >= 2) {
+        console.log(`Discussion complete (${round} rounds)\n`);
         conversation.consensusReached = true;
 
+        const history = conversation.messages.map(m => `[${m.from}] ${m.content}`).join('\n');
         const endpointMatches = history.match(/(?:GET|POST|PUT|DELETE|PATCH)\s+\/[^\s]+/g) || [];
-        conversation.interfaces.endpoints = [...new Set(endpointMatches)].map(ep => {
-          const [method, path] = ep.split(/\s+/);
-          return { method, path, description: `Agreed endpoint from discussion` };
-        });
+        if (endpointMatches.length > 0) {
+          conversation.interfaces.endpoints = [...new Set(endpointMatches)].map(ep => {
+            const [method, path] = ep.split(/\s+/);
+            return { method, path, description: `Agreed endpoint from discussion` };
+          });
+        }
         break;
       }
 
@@ -154,21 +156,150 @@ Respond naturally to move the discussion forward. Share what you need, what you 
   async implement(conversation) {
     console.log("\nImplementation:\n");
 
-    const participantIds = Object.keys(conversation.participants).filter(id => id !== 'claude');
-    const backendFirst = participantIds.sort((a, b) => {
-      if (conversation.participants[a].role === 'backend') return -1;
-      if (conversation.participants[b].role === 'backend') return 1;
-      return 0;
-    });
-
-    const { existsSync } = await import('fs');
+    const { existsSync, readdirSync } = await import('fs');
     const { join } = await import('path');
 
-    for (const pid of backendFirst) {
+    const scanDirectory = (dir) => {
+      const files = new Set();
+
+      const isDependencyDir = (dirPath) => {
+        try {
+          const entries = readdirSync(dirPath, { withFileTypes: true });
+          if (entries.length === 0) return false;
+
+          const fileCount = entries.filter(e => e.isFile()).length;
+          const dirCount = entries.filter(e => e.isDirectory()).length;
+
+          if (fileCount === 0 && dirCount > 50) return true;
+          if (dirCount > 100) return true;
+
+          const hasPackageMarkers = entries.some(e =>
+            e.name === 'package.json' ||
+            e.name === 'package-lock.json' ||
+            e.name === 'yarn.lock' ||
+            e.name === 'pnpm-lock.yaml' ||
+            e.name === 'bun.lockb' ||
+            e.name === 'deno.json' ||
+            e.name === 'deno.lock' ||
+            e.name === 'Cargo.toml' ||
+            e.name === 'Cargo.lock' ||
+            e.name === 'go.mod' ||
+            e.name === 'go.sum' ||
+            e.name === 'pom.xml' ||
+            e.name === 'mvn.lock' ||
+            e.name === 'build.gradle' ||
+            e.name === 'build.gradle.kts' ||
+            e.name === 'settings.gradle' ||
+            e.name === 'gradle.lockfile' ||
+            e.name === 'packages.lock.json' ||
+            e.name === 'Package.swift' ||
+            e.name === 'Package.resolved' ||
+            e.name === 'Podfile' ||
+            e.name === 'Podfile.lock' ||
+            e.name === 'Cartfile' ||
+            e.name === 'Cartfile.resolved' ||
+            e.name === 'pubspec.yaml' ||
+            e.name === 'pubspec.lock' ||
+            e.name === 'Gemfile' ||
+            e.name === 'Gemfile.lock' ||
+            e.name === 'composer.json' ||
+            e.name === 'composer.lock' ||
+            e.name === 'requirements.txt' ||
+            e.name === 'Pipfile' ||
+            e.name === 'Pipfile.lock' ||
+            e.name === 'poetry.lock' ||
+            e.name === 'setup.py' ||
+            e.name === 'pyproject.toml' ||
+            e.name === 'mix.exs' ||
+            e.name === 'mix.lock' ||
+            e.name === 'rebar.config' ||
+            e.name === 'rebar.lock' ||
+            e.name === 'project.clj' ||
+            e.name === 'deps.edn' ||
+            e.name === 'build.sbt' ||
+            e.name === 'build.sc' ||
+            e.name === 'stack.yaml' ||
+            e.name === 'cabal.project' ||
+            e.name === 'Makefile.PL' ||
+            e.name === 'Build.PL' ||
+            e.name === 'cpanfile' ||
+            e.name === 'conan.txt' ||
+            e.name === 'conanfile.py' ||
+            e.name === 'vcpkg.json' ||
+            e.name === 'CMakeLists.txt' ||
+            e.name === 'meson.build' ||
+            e.name === 'zig.build' ||
+            e.name === 'WORKSPACE' ||
+            e.name === 'BUILD' ||
+            e.name === '.buckconfig' ||
+            e.name === 'hardhat.config.js' ||
+            e.name === 'hardhat.config.ts' ||
+            e.name === 'truffle-config.js' ||
+            e.name === 'foundry.toml' ||
+            e.name === 'brownie-config.yaml' ||
+            e.name === 'ape-config.yaml' ||
+            e.name === 'Move.toml' ||
+            e.name === 'Scarb.toml' ||
+            e.name === 'anchor.toml' ||
+            e.name === 'next.config.js' ||
+            e.name === 'next.config.mjs' ||
+            e.name === 'next.config.ts' ||
+            e.name === 'nuxt.config.js' ||
+            e.name === 'nuxt.config.ts' ||
+            e.name === 'vite.config.js' ||
+            e.name === 'vite.config.ts' ||
+            e.name === 'webpack.config.js' ||
+            e.name === 'rollup.config.js' ||
+            e.name === 'svelte.config.js' ||
+            e.name === 'astro.config.mjs' ||
+            e.name === 'remix.config.js' ||
+            e.name === 'gatsby-config.js' ||
+            e.name === 'lerna.json' ||
+            e.name === 'nx.json' ||
+            e.name === 'turbo.json' ||
+            e.name === 'tauri.conf.json' ||
+            e.name === 'electron-builder.yml' ||
+            e.name === 'wagmi.config.ts'
+          );
+
+          if (hasPackageMarkers && dirCount > 10) return true;
+
+          return false;
+        } catch (e) {
+          return false;
+        }
+      };
+
+      try {
+        const scan = (currentDir, depth = 0) => {
+          if (depth > 8) return;
+
+          const entries = readdirSync(currentDir, { withFileTypes: true });
+
+          for (const entry of entries) {
+            if (entry.name.startsWith('.') && entry.name !== '.env') continue;
+
+            const fullPath = join(currentDir, entry.name);
+
+            if (entry.isDirectory()) {
+              if (isDependencyDir(fullPath)) continue;
+              scan(fullPath, depth + 1);
+            } else if (entry.isFile()) {
+              files.add(fullPath);
+            }
+          }
+        };
+        scan(dir);
+      } catch (e) {}
+      return files;
+    };
+
+    for (const pid of conversation.participantOrder) {
+      const participant = conversation.participants[pid];
       const summary = conversation.messages.slice(-10).map(m => `[${m.from}] ${m.content.substring(0, 100)}`).join('\n');
       const otherFiles = Object.entries(conversation.files).filter(([id]) => id !== pid).map(([id, files]) => `${id}: ${files.join(', ')}`).join('\n');
 
-      const prompt = `You are ${pid} (${conversation.participants[pid].role}) in a multi-AI team collaboration.
+      const prompt = `You are ${participant.id} with role: ${participant.role}
 
 Task: ${conversation.task.description}
 Working directory: ${conversation.task.cwd}
@@ -181,19 +312,14 @@ ${JSON.stringify(conversation.interfaces, null, 2)}
 
 ${otherFiles ? `Other team members created:\n${otherFiles}\n` : ''}
 
-IMPLEMENT your part. You MUST create actual files in ${conversation.task.cwd}.
-
-${conversation.participants[pid].role === 'frontend' ?
-  `Create frontend files (e.g., src/App.js, src/components/UserList.js).
-Use the agreed API endpoints.
-${otherFiles ? 'You can import from backend files if needed.' : ''}` :
-  `Create backend files (e.g., src/server.js, src/routes/users.js).
-Implement the agreed API endpoints.`}
+IMPLEMENT your part based on your role description and the discussion. You MUST create actual files in ${conversation.task.cwd}.
 
 After creating files, end your response with:
 FILES: path/to/file1.js, path/to/file2.js
 
 Use your file writing capabilities to actually create the files.`;
+
+      const filesBeforeImpl = scanDirectory(conversation.task.cwd);
 
       try {
         const result = await conversation.participants[pid].provider.executeTask({
@@ -202,26 +328,37 @@ Use your file writing capabilities to actually create the files.`;
           cwd: conversation.task.cwd
         });
 
-        const filesMatch = result.output.match(/FILES:\s*(.+)/i);
-        const reportedFiles = filesMatch ? filesMatch[1].split(',').map(f => f.trim()) : [];
-        if (reportedFiles.length === 0) continue;
+        const filesAfterImpl = scanDirectory(conversation.task.cwd);
+        const newFiles = [...filesAfterImpl].filter(f => !filesBeforeImpl.has(f));
+        const relativeFiles = newFiles.map(f => f.replace(conversation.task.cwd + '/', ''));
 
-        let actualFiles = reportedFiles.filter(f => existsSync(join(conversation.task.cwd, f)));
+        if (relativeFiles.length === 0) {
+          const filesMatch = result.output.match(/FILES:\s*(.+)/i);
+          if (filesMatch) {
+            const reportedFiles = filesMatch[1].split(',').map(f => f.trim()).filter(f => existsSync(join(conversation.task.cwd, f)));
+            if (reportedFiles.length > 0) {
+              relativeFiles.push(...reportedFiles);
+            }
+          }
+        }
 
-        if (actualFiles.length === 0) {
-          const retryResult = await conversation.participants[pid].provider.executeTask({
+        if (relativeFiles.length === 0) {
+          const filesBeforeRetry = scanDirectory(conversation.task.cwd);
+
+          await conversation.participants[pid].provider.executeTask({
             id: `${conversation.id}-retry-${pid}`,
             description: `${prompt}\n\nCRITICAL: Files were not created. Use your file writing tool to actually write files to ${conversation.task.cwd}.`,
             cwd: conversation.task.cwd
           });
 
-          const retryMatch = retryResult.output.match(/FILES:\s*(.+)/i);
-          actualFiles = retryMatch ? retryMatch[1].split(',').map(f => f.trim()).filter(f => existsSync(join(conversation.task.cwd, f))) : [];
+          const filesAfterRetry = scanDirectory(conversation.task.cwd);
+          const retryNewFiles = [...filesAfterRetry].filter(f => !filesBeforeRetry.has(f));
+          relativeFiles.push(...retryNewFiles.map(f => f.replace(conversation.task.cwd + '/', '')));
         }
 
-        if (actualFiles.length > 0) {
-          conversation.files[pid] = actualFiles;
-          console.log(`[${pid}] ${actualFiles.join(', ')}\n`);
+        if (relativeFiles.length > 0) {
+          conversation.files[pid] = [...new Set(relativeFiles)];
+          console.log(`[${pid}] ${conversation.files[pid].join(', ')}\n`);
         }
       } catch (error) {
         continue;
@@ -235,70 +372,42 @@ Use your file writing capabilities to actually create the files.`;
     const { readFileSync, existsSync } = await import('fs');
     const { join } = await import('path');
 
-    let allPassed = true;
+    let allCreated = true;
 
     for (const [pid, files] of Object.entries(conversation.files)) {
       if (!files || files.length === 0) {
-        allPassed = false;
+        console.log(`[${pid}] no files created\n`);
+        allCreated = false;
         continue;
       }
 
-      const fileContents = {};
+      const existing = [];
+      const missing = [];
+
       for (const file of files) {
         const fullPath = join(conversation.task.cwd, file);
         if (existsSync(fullPath)) {
-          fileContents[file] = readFileSync(fullPath, 'utf8');
+          const content = readFileSync(fullPath, 'utf8');
+          if (content.length > 0) {
+            existing.push(`${file} (${content.length} chars)`);
+          } else {
+            missing.push(`${file} (empty)`);
+          }
+        } else {
+          missing.push(`${file} (not found)`);
         }
       }
 
-      if (Object.keys(fileContents).length === 0) {
-        allPassed = false;
-        continue;
+      if (existing.length > 0) {
+        console.log(`[${pid}] created: ${existing.join(', ')}\n`);
       }
 
-      const issues = [];
-
-      for (const [file, content] of Object.entries(fileContents)) {
-        if (content.length < 50) {
-          issues.push(`${file} too short`);
-        }
-
-        if (conversation.participants[pid].role === 'backend') {
-          if (!/app\.(get|post|put|delete|patch)|router\.(get|post|put|delete|patch)|express\(\)/i.test(content)) {
-            issues.push(`${file} missing Express routes`);
-          }
-
-          for (const ep of (conversation.interfaces.endpoints || [])) {
-            const pathPattern = ep.path.replace(/\//g, '\\/');
-            if (!new RegExp(`${ep.method.toLowerCase()}\\s*\\(\\s*['"\`]${pathPattern}`, 'i').test(content)) {
-              issues.push(`${file} missing ${ep.method} ${ep.path}`);
-            }
-          }
-        }
-
-        if (conversation.participants[pid].role === 'frontend') {
-          if (!/import.*react|from\s+['"]react['"]/i.test(content)) {
-            issues.push(`${file} missing React import`);
-          }
-
-          for (const ep of (conversation.interfaces.endpoints || [])) {
-            if (!content.includes(ep.path)) {
-              issues.push(`${file} missing ${ep.path}`);
-            }
-          }
-        }
-      }
-
-      if (issues.length === 0) {
-        console.log(`[${pid}] verified\n`);
-      } else {
-        console.log(`[${pid}] issues:\n`);
-        issues.forEach(issue => console.log(`  ${issue}`));
-        console.log();
-        allPassed = false;
+      if (missing.length > 0) {
+        console.log(`[${pid}] missing: ${missing.join(', ')}\n`);
+        allCreated = false;
       }
     }
 
-    return allPassed;
+    return allCreated;
   }
 }

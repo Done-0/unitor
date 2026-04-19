@@ -91,34 +91,34 @@ claude config unset statusline.command
 
 ### 多 AI 协作
 
-当你运行 `/unitor:collab` 处理多领域任务时，Unitor 编排真实的 AI 间协作：
+当你运行 `/unitor:collab` 时，Claude（协调者）分析任务并编排 AI 专家：
 
-1. **检测领域** - 识别后端、前端、数据库需求
-2. **分配专家** - 路由到 Codex（后端）、Gemini（前端）、Claude（架构）
-3. **圆桌讨论** - AI 讨论需求并协商 API 契约
-4. **自主实现** - 每个 AI 实现各自部分
-5. **验证** - 系统验证集成
+1. **协调者分析任务** - Claude 理解需要构建什么
+2. **定义专家角色** - 为每个部分创建具体的角色描述
+3. **路由到提供商** - 根据专长将角色分配给 Codex、Gemini 或 Claude
+4. **圆桌讨论** - AI 讨论需求直到所有参与者都贡献并达成理解（根据任务复杂度动态调整轮次）
+5. **自主实现** - 每个 AI 按协调者定义的顺序实现各自部分
+6. **基础验证** - 系统确认文件已创建（协调者审查质量）
 
 示例：
 
 ```bash
-/unitor:collab "构建用户列表页面：React 前端和 Express 后端，GET /api/users"
+/unitor:collab "构建 JWT 用户认证"
 ```
 
 **会发生什么：**
-- Codex 提出后端 API 结构
-- Gemini 提出前端组件设计
-- 他们协商数据格式（对象包装 vs 数组）
-- 双方实现并创建实际文件
+- Claude 分析：需要认证 API、登录 UI、用户数据库
+- Claude 定义角色：
+  - "JWT 认证 API - 实现 /login、/register、/refresh，包含令牌生成和验证"
+  - "React 登录 UI - 构建表单，包含验证和错误处理"
+  - "用户数据库 - 设计用户表，包含密码哈希"
+- Codex 处理认证 API
+- Gemini 处理登录 UI
+- Codex 处理数据库
+- AI 讨论并实现
 - 系统验证集成
 
-**结果：** 在 `user-list-app/` 中创建完整可运行应用：
-```
-user-list-app/
-├── backend/server.mjs       # Express API，端口 3001
-├── frontend/src/App.jsx     # React 应用
-└── README.md                # 设置说明
-```
+**结果：** 创建完整的可运行应用，所有组件已集成。
 
 ### 单领域路由
 
@@ -140,13 +140,26 @@ user-list-app/
 - 多个 AI 共同完成全栈功能
 - 一次性实现后端和前端
 - 真实 AI 讨论和协商
+- 从不同视角审查设计、架构或内容
 
-示例：
+**基本用法：**
 
 ```bash
 /unitor:collab "构建用户认证：React 登录表单 + Express JWT API"
-/unitor:collab "创建待办事项应用，React 前端和 Express 后端"
+/unitor:collab "审查并改进这个 API 设计"
 ```
+
+**指定自定义模型：**
+
+```bash
+# 指定单个模型
+/unitor:collab --claude=claude-opus-4-7 --codex=gpt-5.4 "复杂架构任务"
+
+# 紧凑格式
+/unitor:collab --models=claude:opus-4-7,codex:gpt-5.4,gemini:pro "任务描述"
+```
+
+不指定模型时，使用配置中的默认模型。
 
 > [!NOTE]
 > 协作需要 5-8 分钟。AI 讨论、协商、实现、验证。这是真实工作，不是即时生成。
@@ -232,8 +245,9 @@ user-list-app/
 ## 生产特性
 
 - **真实 AI 协作** - 调用真实的 Codex 和 Gemini CLI，不是模拟
-- **自主共识** - AI 检测协议并进入实现阶段
-- **文件验证** - 验证实际文件内容符合约定契约
+- **自主共识** - AI 讨论直到所有参与者都贡献（动态轮次）
+- **通用文件检测** - 检测所有文件类型（任何语言、任何扩展名）
+- **基础验证** - 确认文件已创建，协调者审查质量
 - **重试逻辑** - 瞬态错误重试 2 次，指数退避
 - **超时保护** - 默认 300 秒，每个提供商可配置
 - **成本保护** - 每次协作最多 50 次提供商调用

@@ -11,7 +11,7 @@ export class CodexProvider extends AIProvider {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         return await new Promise((resolve, reject) => {
-          const args = ["exec", task.description];
+          const args = ["exec", "--skip-git-repo-check", task.description];
           if (this.config.model) args.splice(1, 0, "--model", this.config.model);
 
           const proc = spawn("codex", args, {

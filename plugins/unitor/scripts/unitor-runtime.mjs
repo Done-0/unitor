@@ -109,68 +109,124 @@ try {
     }
     console.log();
   } else if (command === "collab") {
-    const taskDescription = args.join(" ");
-    if (!taskDescription) throw new Error("Task description required");
+    const modelOverrides = {};
+    const taskArgs = [];
+    let rolesFilePath = null;
 
-    const config = getConfig(cwd);
-    const providers = createProviders(config);
-
-    const decomposer = new TaskDecomposer(router, config);
-    const decomposition = decomposer.decompose(taskDescription);
-
-    if (!decomposition.needsCollab) {
-      console.log(`\nSingle domain task, using routing\n`);
-      const task = { id: generateId("task"), description: taskDescription, cwd };
-      const decision = router.route(task, config);
-      console.log(`Provider: ${decision.provider}\n`);
-
-      if (decision.provider === "claude") {
-        console.log("Claude will execute this task\n");
-      } else {
-        const provider = providers[decision.provider];
-        if (!provider) {
-          console.log(`Provider not found, falling back to Claude\n`);
-        } else {
-          try {
-            const result = await provider.executeTask(task);
-            upsertTask(cwd, { id: task.id, status: "completed", result });
-            console.log(result.output);
-          } catch (error) {
-            console.log(`Execution failed: ${error.message}\n`);
-            upsertTask(cwd, { id: task.id, status: "failed", error: error.message });
-            console.log("Falling back to Claude\n");
+    for (const arg of args) {
+      if (arg.startsWith('--models=')) {
+        const modelsStr = arg.slice(9);
+        modelsStr.split(',').forEach(pair => {
+          const [provider, model] = pair.split(':');
+          if (provider && model) {
+            modelOverrides[provider.trim()] = model.trim();
           }
-        }
+        });
+      } else if (arg.startsWith('--claude=')) {
+        modelOverrides.claude = arg.slice(9);
+      } else if (arg.startsWith('--codex=')) {
+        modelOverrides.codex = arg.slice(8);
+      } else if (arg.startsWith('--gemini=')) {
+        modelOverrides.gemini = arg.slice(9);
+      } else if (!rolesFilePath && arg.endsWith('.json')) {
+        rolesFilePath = arg;
+      } else {
+        taskArgs.push(arg);
       }
-      process.exit(0);
     }
 
-    console.log(`\nMulti-domain collaboration\n`);
+    const taskDescription = taskArgs.join(" ");
+
+    if (!rolesFilePath || !taskDescription) {
+      throw new Error("Usage: collab [options] <roles-file.json> <task description>");
+    }
+
+    const { readFileSync, existsSync } = await import('fs');
+
+    if (!existsSync(rolesFilePath)) {
+      throw new Error(`Roles file not found: ${rolesFilePath}`);
+    }
+
+    let rolesData;
+    try {
+      rolesData = JSON.parse(readFileSync(rolesFilePath, 'utf8'));
+    } catch (error) {
+      throw new Error(`Invalid JSON in roles file: ${error.message}`);
+    }
+
+    const customRoles = rolesData.roles || {};
+
+    if (typeof customRoles !== 'object' || Array.isArray(customRoles) || customRoles === null) {
+      throw new Error("Roles file must contain 'roles' as an object with role definitions");
+    }
+
+    if (Object.keys(customRoles).length === 0) {
+      throw new Error("Roles file must contain at least one role in 'roles' object");
+    }
+
+    const config = getConfig(cwd);
+
+    if (Object.keys(modelOverrides).length > 0) {
+      for (const [provider, model] of Object.entries(modelOverrides)) {
+        if (config.providers[provider]) {
+          config.providers[provider].model = model;
+        }
+      }
+    }
+
+    const providers = createProviders(config);
+
+    console.log(`\nMulti-AI collaboration\n`);
 
     const coordinator = new CollaborationCoordinator(router, config, providers);
     const task = { id: generateId("task"), description: taskDescription, cwd };
 
+    const decomposition = {
+      needsCollab: true,
+      domains: Object.keys(customRoles).reduce((acc, key) => {
+        acc[key] = true;
+        return acc;
+      }, {})
+    };
+
     try {
-      const { conversation, verified } = await coordinator.start(task, decomposition);
+      const { conversation, verified } = await coordinator.start(task, decomposition, customRoles);
 
       console.log("\nSummary:");
-      console.log(`Participants: ${Object.keys(conversation.participants).filter(id => id !== 'claude').join(", ")}`);
+      const participantDisplay = Object.entries(conversation.participants)
+        .map(([roleKey, p]) => `${p.id}: ${p.role}`)
+        .join('\n  ');
+      console.log(`Participants:\n  ${participantDisplay}`);
       console.log(`Messages: ${conversation.messages.length}`);
       console.log(`Verified: ${verified ? 'Yes' : 'No'}\n`);
 
       if (Object.keys(conversation.files).length > 0) {
         console.log("Files:");
-        for (const [participant, files] of Object.entries(conversation.files)) {
-          console.log(`  ${participant}: ${Array.isArray(files) ? files.join(', ') : files}`);
+        for (const [roleKey, files] of Object.entries(conversation.files)) {
+          const participant = conversation.participants[roleKey];
+          const displayName = participant ? `${participant.id} (${participant.domain})` : roleKey;
+          console.log(`  ${displayName}: ${Array.isArray(files) ? files.join(', ') : files}`);
         }
         console.log();
       }
+
+      const participantsList = Object.entries(conversation.participants)
+        .reduce((acc, [roleKey, p]) => {
+          const existing = acc.find(item => item.id === p.id);
+          if (existing) {
+            existing.domains.push(p.domain);
+          } else {
+            acc.push({ id: p.id, domains: [p.domain] });
+          }
+          return acc;
+        }, [])
+        .map(({ id, domains }) => domains.length > 1 ? `${id}(${domains.join('+')})` : id);
 
       upsertTask(cwd, {
         id: task.id,
         status: verified ? "completed" : "failed",
         sessionId: conversation.id,
-        participants: Object.keys(conversation.participants).filter(id => id !== 'claude'),
+        participants: participantsList,
         messages: conversation.messages.length,
         files: Object.keys(conversation.files || {}).length,
         verified

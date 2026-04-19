@@ -91,34 +91,34 @@ claude config unset statusline.command
 
 ### Multi-AI Collaboration
 
-When you run `/unitor:collab` with a multi-domain task, Unitor orchestrates real AI-to-AI collaboration:
+When you run `/unitor:collab`, Claude (the coordinator) analyzes your task and orchestrates AI specialists:
 
-1. **Detects domains** - Identifies backend, frontend, database needs
-2. **Assigns specialists** - Routes to Codex (backend), Gemini (frontend), Claude (architecture)
-3. **Round-table discussion** - AIs discuss requirements and negotiate API contracts
-4. **Autonomous implementation** - Each AI implements their part
-5. **Verification** - System validates integration
+1. **Coordinator analyzes task** - Claude understands what needs to be built
+2. **Defines specialist roles** - Creates specific role descriptions for each part
+3. **Routes to providers** - Assigns roles to Codex, Gemini, or Claude based on expertise
+4. **Round-table discussion** - AIs discuss requirements until all participants contribute and reach understanding (dynamic rounds based on task complexity)
+5. **Autonomous implementation** - Each AI implements their part in the order defined by coordinator
+6. **Basic verification** - System confirms files were created (coordinator reviews quality)
 
 Example:
 
 ```bash
-/unitor:collab "build user list page: React frontend and Express backend with GET /api/users"
+/unitor:collab "build user authentication with JWT"
 ```
 
 **What happens:**
-- Codex proposes backend API structure
-- Gemini proposes frontend component design
-- They negotiate data format (object wrapper vs array)
-- Both implement and create actual files
-- System verifies the integration
+- Claude analyzes: needs auth API, login UI, user database
+- Claude defines roles:
+  - "JWT auth API - implement /login, /register, /refresh with token generation and validation"
+  - "React login UI - build forms with validation and error handling"
+  - "User database - design users table with password hashing"
+- Codex handles auth API
+- Gemini handles login UI
+- Codex handles database
+- AIs discuss and implement
+- System verifies integration
 
-**Result:** Complete working application in `user-list-app/`:
-```
-user-list-app/
-├── backend/server.mjs       # Express API on port 3001
-├── frontend/src/App.jsx     # React app
-└── README.md                # Setup instructions
-```
+**Result:** Complete working application with all components integrated.
 
 ### Single-Domain Routing
 
@@ -140,13 +140,26 @@ Use it when you want:
 - Multiple AIs to work together on a full-stack feature
 - Backend and frontend implemented in one go
 - Real AI discussion and negotiation
+- Different perspectives on design, architecture, or content
 
-Examples:
+**Basic usage:**
 
 ```bash
 /unitor:collab "build user authentication: React login form + Express JWT API"
-/unitor:collab "create todo app with React frontend and Express backend"
+/unitor:collab "review and improve this API design"
 ```
+
+**With custom models:**
+
+```bash
+# Specify individual models
+/unitor:collab --claude=claude-opus-4-7 --codex=gpt-5.4 "complex architecture task"
+
+# Compact format
+/unitor:collab --models=claude:opus-4-7,codex:gpt-5.4,gemini:pro "task description"
+```
+
+Without model flags, uses default models from configuration.
 
 > [!NOTE]
 > Collaboration takes 5-8 minutes. AIs discuss, negotiate, implement, and verify. This is real work, not instant generation.
@@ -232,8 +245,9 @@ Check provider health and recent tasks.
 ## Production Features
 
 - **Real AI collaboration** - Calls actual Codex and Gemini CLIs, not simulated
-- **Autonomous consensus** - AIs detect agreement and move to implementation
-- **File verification** - Validates actual file contents match agreed contracts
+- **Autonomous consensus** - AIs discuss until all participants contribute (dynamic rounds)
+- **Universal file detection** - Detects all file types (any language, any extension)
+- **Basic verification** - Confirms files created, coordinator reviews quality
 - **Retry logic** - 2 retries with exponential backoff for transient errors
 - **Timeout protection** - 300s default, configurable per provider
 - **Cost protection** - Max 50 provider calls per collaboration

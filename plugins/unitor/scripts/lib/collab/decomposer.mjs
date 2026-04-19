@@ -8,25 +8,32 @@ export class TaskDecomposer {
     const tags = this.router.extractRequiredTags(taskDescription);
     const tagMap = new Map(tags);
 
-    const hasBackend = tagMap.has("backend-api");
-    const hasFrontend = tagMap.has("frontend-ui");
-    const hasDatabase = tagMap.has("database");
+    const keywords = taskDescription.toLowerCase();
+    const collabIndicators = [
+      keywords.includes('review') && (keywords.includes('improve') || keywords.includes('feedback')),
+      keywords.includes('discuss') || keywords.includes('debate') || keywords.includes('perspectives'),
+      keywords.includes('analyze') && keywords.includes('different'),
+      keywords.includes('team') || keywords.includes('collaborate'),
+      keywords.includes('architecture') && keywords.includes('design'),
+      tagMap.size >= 2
+    ];
 
-    const domainCount = [hasBackend, hasFrontend, hasDatabase].filter(Boolean).length;
+    const needsCollab = collabIndicators.filter(Boolean).length >= 1 || tagMap.size >= 2;
 
-    if (domainCount < 2) {
-      return { needsCollab: false, reason: "single domain task" };
+    if (!needsCollab) {
+      return { needsCollab: false, reason: "single perspective task" };
     }
+
+    const domains = {};
+    if (tagMap.has("backend-api")) domains.backend = true;
+    if (tagMap.has("frontend-ui")) domains.frontend = true;
+    if (tagMap.has("database")) domains.database = true;
 
     return {
       needsCollab: true,
-      reason: "multi-domain task requires orchestration",
+      reason: "multi-perspective task requires collaboration",
       assignedTo: "claude",
-      domains: {
-        backend: hasBackend,
-        frontend: hasFrontend,
-        database: hasDatabase
-      }
+      domains
     };
   }
 }
