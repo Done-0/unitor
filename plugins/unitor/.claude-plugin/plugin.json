@@ -1,6 +1,6 @@
 {
   "name": "unitor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Multi-AI collaboration plugin - orchestrates Codex, Gemini, and Claude as a team",
   "author": {
     "name": "Done-0"
