@@ -13,6 +13,13 @@ const pluginJsonPath = join(rootDir, 'plugins/unitor/.claude-plugin/plugin.json'
 const marketplaceJsonPath = join(rootDir, '.claude-plugin/marketplace.json');
 
 const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
+
+const newVersion = process.argv[2];
+if (newVersion) {
+  packageJson.version = newVersion;
+  writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
+}
+
 const version = packageJson.version;
 
 const pluginJson = JSON.parse(readFileSync(pluginJsonPath, 'utf8'));

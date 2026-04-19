@@ -1,6 +1,6 @@
 {
   "name": "unitor",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Multi-AI collaboration plugin for Claude Code - orchestrates Codex, Gemini, and Claude as a team",
   "type": "module",
   "main": "plugins/unitor/scripts/unitor-runtime.mjs",

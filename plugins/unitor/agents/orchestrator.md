@@ -34,10 +34,17 @@ Before forwarding, analyze the task to determine the appropriate command:
 
 Forwarding rules:
 
-For single-domain tasks, run:
-```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs" route "task description"
-```
+For single-domain tasks:
+1. Get provider capabilities:
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs" status --json
+   ```
+2. Analyze task against provider tags
+3. Decide which provider is best match
+4. Forward with explicit provider:
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs" route --provider=<provider-id> "task description"
+   ```
 
 For multi-domain tasks:
 - Do NOT forward to runtime

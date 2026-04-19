@@ -10,24 +10,20 @@ Internal guidance for understanding how Unitor routes tasks.
 
 ## How Routing Works
 
-### Tag-Weight Matching System
+### Coordinator-Driven Decision System
 
-The Unitor runtime uses a dynamic tag-weight matching system:
+The Unitor routing uses a coordinator-driven approach:
 
-1. **Extract Tags**: Analyze task description for relevant tags
+1. **Coordinator sees provider capabilities**: Each provider has tags defining their expertise
    - Frontend: `frontend-ui`, `react`, `vue`, `css`, `html`
    - Backend: `backend-api`, `database`, `python`, `go`, `nodejs`
    - Architecture: `architecture`, `security`, `complex-reasoning`
-   - Other: `debugging`, `testing`, `chinese-tasks`, `simple-tasks`
 
-2. **Calculate Scores**: For each enabled provider
-   ```
-   score = Σ(provider_tag_weight × task_tag_importance) / Σ(task_tag_importance)
-   ```
+2. **Coordinator analyzes task**: Understand what the task needs based on provider tags
 
-3. **Select Best Provider**: Highest score wins
-   - If scores are close (< 0.05), priority is tiebreaker
-   - If no tags match, use priority / 100 as fallback
+3. **Coordinator decides provider**: Choose the best match based on provider capabilities
+
+4. **Execute with decision**: Pass explicit provider to runtime or execute directly
 
 ### Provider Configuration
 
@@ -71,24 +67,21 @@ You don't need to manage fallback logic.
 ```javascript
 // Example 1: Frontend task
 "Fix the login button color"
-→ Runtime extracts: frontend-ui, css
-→ Runtime calculates scores for all providers
-→ Runtime selects best match
-→ Executes via selected provider
+→ Coordinator sees gemini has frontend-ui, css tags
+→ Coordinator decides: route to gemini
+→ Executes: route --provider=gemini "Fix the login button color"
 
 // Example 2: Backend task
 "Add user registration endpoint"
-→ Runtime extracts: backend-api
-→ Runtime calculates scores
-→ Runtime selects best match
-→ Executes via selected provider
+→ Coordinator sees codex has backend-api tag
+→ Coordinator decides: route to codex
+→ Executes: route --provider=codex "Add user registration endpoint"
 
 // Example 3: Architecture task
 "Refactor authentication system"
-→ Runtime extracts: architecture, security
-→ Runtime calculates scores
-→ Claude likely has highest score
-→ Returns control to Claude
+→ Coordinator sees claude has architecture, security tags
+→ Coordinator decides: execute directly
+→ Claude handles the task
 ```
 
 ## Understanding Provider Selection
@@ -104,15 +97,18 @@ The runtime selects providers based on:
 ## Your Role
 
 As Claude, you should:
-1. **Delegate to runtime**: Let it make routing decisions
-2. **Execute when selected**: When runtime returns control to you
-3. **Present results**: When other providers execute successfully
-4. **Handle gracefully**: When fallback occurs
+1. **See provider capabilities**: Check provider tags via status command
+2. **Analyze and decide**: Choose the best provider based on task needs
+3. **Execute with decision**: Pass --provider parameter or execute directly
+4. **Present results**: When other providers execute successfully
 
-You are NOT responsible for:
-- Calculating tag scores
-- Deciding which provider to use
-- Managing provider execution
-- Handling retries and timeouts
+You are responsible for:
+- Understanding provider capabilities (tags)
+- Analyzing task requirements
+- Making routing decisions
+- Passing decisions to runtime
 
-The runtime handles all of this automatically.
+The runtime handles:
+- Provider execution
+- Retries and timeouts
+- Fallback to Claude if provider fails

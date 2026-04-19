@@ -5,7 +5,6 @@ import { TaskRouter } from "./lib/router.mjs";
 import { ClaudeProvider } from "./lib/providers/claude.mjs";
 import { GeminiProvider } from "./lib/providers/gemini.mjs";
 import { CodexProvider } from "./lib/providers/codex.mjs";
-import { TaskDecomposer } from "./lib/collab/decomposer.mjs";
 import { CollaborationCoordinator } from "./lib/collab/coordinator.mjs";
 import { generateId, upsertTask, listTasks, getConfig, updateState } from "./lib/state.mjs";
 
@@ -37,15 +36,54 @@ function createProviders(config) {
 
 try {
   if (command === "route") {
-    const taskDescription = args.join(" ");
+    let explicitProvider = null;
+    let tagsFilePath = null;
+    const taskArgs = [];
+
+    for (const arg of args) {
+      if (arg.startsWith('--provider=')) {
+        explicitProvider = arg.slice(11);
+      } else if (arg.startsWith('--tags=')) {
+        tagsFilePath = arg.slice(7);
+      } else if (!tagsFilePath && arg.endsWith('.json')) {
+        tagsFilePath = arg;
+      } else {
+        taskArgs.push(arg);
+      }
+    }
+
+    const taskDescription = taskArgs.join(" ");
     if (!taskDescription) throw new Error("Task description required");
 
     const config = getConfig(cwd);
     const providers = createProviders(config);
     const task = { id: generateId("task"), description: taskDescription, cwd };
-    const decision = router.route(task, config);
+
+    let decision;
+
+    if (explicitProvider) {
+      decision = {
+        provider: explicitProvider,
+        reason: "Coordinator decision",
+        confidence: 1.0
+      };
+    } else {
+      let taskTags = null;
+      if (tagsFilePath) {
+        const { readFileSync, existsSync } = await import('fs');
+        if (existsSync(tagsFilePath)) {
+          try {
+            taskTags = JSON.parse(readFileSync(tagsFilePath, 'utf8'));
+          } catch (error) {
+            console.log(`Warning: Failed to parse tags file: ${error.message}\n`);
+          }
+        }
+      }
+      decision = router.route(task, config, taskTags);
+    }
 
     console.log(`\nProvider: ${decision.provider}`);
+    console.log(`Reason: ${decision.reason}`);
     console.log(`Confidence: ${(decision.confidence * 100).toFixed(0)}%\n`);
 
     upsertTask(cwd, { id: task.id, description: taskDescription, assignedTo: decision.provider, status: "pending", decision });

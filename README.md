@@ -124,11 +124,14 @@ Example:
 
 For single-domain tasks, `/unitor:route` picks the best specialist:
 
-- Frontend/CSS → Gemini
-- Backend/API → Codex  
-- Architecture/Security → Claude
+- Coordinator (Claude) sees each provider's capabilities (tags)
+- Analyzes the task requirements
+- Directly decides which provider is the best match
+- Routes to that provider for execution
 
-Routing uses tag-weight matching based on each AI's expertise.
+Example: "fix button styling" → coordinator sees gemini has frontend-ui, css expertise → routes to Gemini
+
+Routing is based on coordinator's analysis of provider capabilities, not hardcoded keywords.
 
 ## Usage
 

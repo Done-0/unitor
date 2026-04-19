@@ -40,16 +40,22 @@ Determine if the task should be routed:
 
 ### Step 2: Use the Runtime
 
-Execute the routing command:
-```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs" route "task description"
-```
+For routing decisions:
+1. Get provider capabilities:
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs" status --json
+   ```
+2. Analyze task against provider tags
+3. Decide which provider is best match
+4. Execute with explicit provider:
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs" route --provider=<provider-id> "task description"
+   ```
 
 The runtime will:
-- Extract tags from the task description
-- Calculate scores for each enabled provider
-- Select the best provider
-- Execute via that provider or return control to you
+- Execute via the specified provider
+- Handle retries and fallback automatically
+- Return results or control to you
 
 ### Step 3: Handle Result
 

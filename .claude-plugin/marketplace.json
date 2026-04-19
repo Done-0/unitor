@@ -5,13 +5,13 @@
   },
   "metadata": {
     "description": "Multi-AI team collaboration: Multiple AIs (Codex, Gemini, Claude) work together as specialists. Use /unitor:collab when task needs multiple domains (e.g., 'build auth system', 'create data pipeline with API'). Use /unitor:route for single-domain tasks.",
-    "version": "0.1.1"
+    "version": "0.2.0"
   },
   "plugins": [
     {
       "name": "unitor",
       "description": "Orchestrates multiple AIs as a collaborative team. AIs discuss requirements, negotiate interfaces, and implement together. Use /unitor:collab for complex multi-domain tasks, /unitor:route for focused single-domain work. Supports any language and framework.",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "author": {
         "name": "Done-0"
       },

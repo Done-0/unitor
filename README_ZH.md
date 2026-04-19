@@ -124,11 +124,14 @@ claude config unset statusline.command
 
 对于单领域任务，`/unitor:route` 选择最佳专家：
 
-- 前端/CSS → Gemini
-- 后端/API → Codex  
-- 架构/安全 → Claude
+- 协调者（Claude）查看每个提供商的能力（标签）
+- 分析任务需求
+- 直接决定哪个提供商最匹配
+- 路由到该提供商执行
 
-路由使用基于每个 AI 专长的标签权重匹配。
+示例："修复按钮样式" → 协调者看到 gemini 有 frontend-ui、css 专长 → 路由到 Gemini
+
+路由基于协调者对提供商能力的分析，而非硬编码关键词。
 
 ## 使用方法
 
