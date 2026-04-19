@@ -1,12 +1,26 @@
 ---
 name: task-routing
-description: Intelligent task routing decision guidance
+description: "Internal guidance for understanding how Unitor routes tasks. Covers coordinator-driven routing decisions, provider selection logic, and when to route vs execute directly vs use collaboration."
 user-invocable: false
 ---
 
 # Task Routing Skill
 
 Internal guidance for understanding how Unitor routes tasks.
+
+## Routing vs Collaboration Decision
+
+**Before routing, check if task needs collaboration:**
+
+Use `/unitor:collab` instead of routing when:
+- Task spans multiple domains (frontend + backend, API + database)
+- Task needs multiple perspectives (review, critique, discussion)
+- User uses collaboration keywords: negotiate, discuss, multiple angles, review from multiple perspectives
+- Task benefits from specialist discussion
+
+Use `/unitor:route` for:
+- Single-domain focused tasks (frontend-only, backend-only, database-only)
+- Clear technical scope without need for multiple viewpoints
 
 ## How Routing Works
 
@@ -65,21 +79,21 @@ You don't need to manage fallback logic.
 ## Example Routing Decisions
 
 ```javascript
-// Example 1: Frontend task
-"Fix the login button color"
-→ Coordinator sees gemini has frontend-ui, css tags
-→ Coordinator decides: route to gemini
-→ Executes: route --provider=gemini "Fix the login button color"
+// Example 1: Specialized task
+"Fix the styling issue"
+→ Coordinator sees Provider B has relevant expertise
+→ Coordinator decides: route to Provider B
+→ Executes: route --provider=provider-b "Fix the styling issue"
 
-// Example 2: Backend task
-"Add user registration endpoint"
-→ Coordinator sees codex has backend-api tag
-→ Coordinator decides: route to codex
-→ Executes: route --provider=codex "Add user registration endpoint"
+// Example 2: Different specialty
+"Add the endpoint"
+→ Coordinator sees Provider C has relevant expertise
+→ Coordinator decides: route to Provider C
+→ Executes: route --provider=provider-c "Add the endpoint"
 
-// Example 3: Architecture task
-"Refactor authentication system"
-→ Coordinator sees claude has architecture, security tags
+// Example 3: Complex reasoning task
+"Refactor the system architecture"
+→ Coordinator sees this requires complex reasoning
 → Coordinator decides: execute directly
 → Claude handles the task
 ```

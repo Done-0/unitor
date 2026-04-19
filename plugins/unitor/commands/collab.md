@@ -1,5 +1,5 @@
 ---
-description: Multi-AI collaboration for complex multi-domain tasks
+description: "Multi-AI collaboration for tasks requiring multiple perspectives, discussion, or negotiation. Use when: user explicitly requests collaboration (negotiate, discuss, multiple angles, review from different perspectives), task benefits from diverse viewpoints (review, critique, evaluation), or task needs specialist discussion. Examples: 'review this from multiple angles', 'negotiate and handle this issue', 'discuss pros and cons', 'get different perspectives on this'."
 argument-hint: '[options] [task description]'
 allowed-tools: Bash(node:*), Write
 ---
@@ -31,9 +31,9 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs" status --json
 ```
 
 This shows each provider's strengths via tags:
-- **claude**: architecture(1), security(1), complex-reasoning(0.95), backend-api(0.7)
-- **gemini**: frontend-ui(1), react(0.95), css(0.95), vue(0.9)
-- **codex**: backend-api(0.95), python(0.9), database(0.9), sql(0.85)
+- **Provider A**: architecture(1), security(1), complex-reasoning(0.95), backend-api(0.7)
+- **Provider B**: frontend-ui(1), react(0.95), css(0.95), vue(0.9)
+- **Provider C**: backend-api(0.95), python(0.9), database(0.9), sql(0.85)
 
 Use this to assign roles to the right specialists.
 
@@ -43,10 +43,10 @@ Extract model options (if any) and task description from `$ARGUMENTS`:
 
 ```bash
 # Individual models
-/unitor:collab --claude=claude-opus-4-7 --codex=gpt-5.4 "task"
+/unitor:collab --provider-a=model-name --provider-b=model-name "task"
 
 # Compact format
-/unitor:collab --models=claude:opus-4-7,codex:gpt-5.4 "task"
+/unitor:collab --models=provider-a:model-name,provider-b:model-name "task"
 
 # Default models (no flags)
 /unitor:collab "task"

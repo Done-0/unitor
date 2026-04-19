@@ -1,6 +1,6 @@
 ---
 name: auto-routing
-description: Automatically route tasks to optimal AI providers without user intervention
+description: "Automatically route tasks to optimal AI providers without user intervention. Use proactively when: user requests focused single-domain work, task clearly matches a provider's specialty, or task is delegatable and doesn't require deep architectural reasoning. Watch for collaboration signals (negotiate, discuss, multiple perspectives, review, critique) - those need /unitor:collab instead."
 user-invocable: false
 ---
 
@@ -8,35 +8,38 @@ user-invocable: false
 
 **IMPORTANT**: This skill is automatically active. You should proactively use Unitor to route tasks without waiting for user commands.
 
-## When to Auto-Route
+## When to Auto-Route vs Collaborate
 
-### Always Consider Routing
+### Use Auto-Routing (`/unitor:route`)
 
-Before executing ANY task, ask yourself:
-1. Could this benefit from a specialized AI provider?
-2. Is this simple enough to delegate?
-3. Or does it require deep reasoning that only Claude can provide?
+Single-domain, focused tasks that match a provider's specialty.
 
-### Decision Process
+**Signals for routing:**
+- Task is focused on one domain
+- Clear technical scope
+- Doesn't need multiple perspectives
 
-**Use the Unitor runtime** to make routing decisions:
-- The runtime analyzes task tags and calculates scores
-- It selects the best provider based on current configuration
-- It handles execution and fallback automatically
+### Use Collaboration (`/unitor:collab`)
 
-**Do NOT hardcode** provider assignments:
-- Don't assume "frontend → Gemini"
-- Don't assume "backend → Codex"
-- Let the runtime decide based on tag-weight matching
+Tasks needing multiple perspectives or discussion:
+- Content: "Review this from multiple angles", "Negotiate and handle this issue", "Get feedback on this"
+- Discussion: "Discuss pros/cons", "Multiple perspectives on", "Evaluate from different angles"
+- Critique: "Review this", "Get different viewpoints on this approach"
+- Multi-domain: "Build this feature end-to-end", "Implement this system completely"
 
-## How to Auto-Route
+**Signals for collaboration:**
+- Keywords: negotiate, discuss, multiple perspectives, multiple angles, different viewpoints, review, critique, improve, feedback, brainstorm
+- User explicitly asks for collaboration or multiple perspectives
+- Task benefits from diverse specialist opinions
+- Task needs discussion or negotiation
 
-### Step 1: Analyze Task Type
+### Execute Directly (Don't Route)
 
-Determine if the task should be routed:
-- Simple, focused tasks → Consider routing
-- Complex, architectural tasks → Keep in Claude
-- Security-critical tasks → Keep in Claude
+Keep in Claude when:
+- Architecture or system design
+- Security-critical tasks
+- Complex debugging requiring deep reasoning
+- Multi-system refactoring
 
 ### Step 2: Use the Runtime
 

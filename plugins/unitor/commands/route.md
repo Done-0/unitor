@@ -1,5 +1,5 @@
 ---
-description: Route task to the best AI provider
+description: "Route single-domain task to the best AI provider. Use for focused tasks matching a provider's specialty. For tasks needing multiple perspectives, discussion, or negotiation, use /unitor:collab instead."
 argument-hint: '[task description]'
 allowed-tools: Bash(node:*)
 ---
@@ -24,9 +24,9 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs" status
 ```
 
 This shows each provider's strengths:
-- **claude**: architecture, security, complex-reasoning, backend-api
-- **gemini**: frontend-ui, react, css, vue
-- **codex**: backend-api, python, database, sql
+- **Provider A**: architecture, security, complex-reasoning, backend-api
+- **Provider B**: frontend-ui, react, css, vue
+- **Provider C**: backend-api, python, database, sql
 
 ## Step 2: Analyze Task
 
@@ -37,14 +37,9 @@ Understand `$ARGUMENTS`:
 
 ## Step 3: Decide Provider
 
-Based on provider capabilities and task analysis, decide:
-- **Frontend/UI work** → gemini
-- **Backend/API work** → codex or claude
-- **Database work** → codex
-- **Architecture/Security** → claude (you)
-- **Complex reasoning** → claude (you)
+Based on provider capabilities and task analysis, decide which provider best matches the task requirements.
 
-If you (claude) are the best match, execute the task directly.
+If you are the best match, execute the task directly.
 
 ## Step 4: Execute
 
@@ -53,7 +48,7 @@ If routing to another provider:
 node "${CLAUDE_PLUGIN_ROOT}/scripts/unitor-runtime.mjs" route --provider=<provider-id> "$ARGUMENTS"
 ```
 
-Replace `<provider-id>` with the chosen provider (gemini, codex, etc).
+Replace `<provider-id>` with the chosen provider.
 
 If you are the best match:
 - Execute the task in `$ARGUMENTS` directly
@@ -69,7 +64,7 @@ If you called runtime:
 
 Task: "fix the login button styling"
 
-1. Get status → gemini has frontend-ui, css expertise
+1. Get status → Provider B has frontend-ui, css expertise
 2. Analyze → this is UI styling work
-3. Decide → gemini is best match
-4. Execute → route to gemini
+3. Decide → Provider B is best match
+4. Execute → route to Provider B

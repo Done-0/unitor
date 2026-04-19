@@ -1,6 +1,6 @@
 ---
 name: collaboration
-description: Multi-AI collaboration orchestration guidance
+description: "Multi-AI collaboration for tasks requiring multiple perspectives, discussion, or negotiation. Use when: user explicitly requests collaboration (negotiate, discuss, multiple angles, review from different perspectives, get feedback from multiple experts), task benefits from diverse viewpoints (review, critique, evaluation, brainstorming), or task needs specialist discussion. Examples: 'review this from multiple angles', 'negotiate and handle this issue', 'get different perspectives on this', 'discuss pros and cons of this approach'."
 user-invocable: false
 ---
 
@@ -10,7 +10,25 @@ Guidance for orchestrating multi-AI collaboration in Unitor.
 
 ## When to Use Collaboration
 
-Use `/unitor:collab` when a task requires multiple AI specialists working together.
+Use `/unitor:collab` when a task requires multiple AI specialists working together:
+
+**Tasks needing multiple perspectives:**
+- Content review (e.g., "Review this marketing copy from multiple angles")
+- Design critique (e.g., "Get different perspectives on this API design")
+- Architecture discussion (e.g., "Discuss pros/cons of this approach")
+- Problem analysis (e.g., "Negotiate and handle this copy issue")
+- Brainstorming (e.g., "Generate ideas from different viewpoints")
+
+**Tasks spanning multiple technical domains:**
+- Full-stack features (e.g., "Build user profile with API and React UI")
+- End-to-end implementation (e.g., "Implement authentication system")
+- Cross-domain integration (e.g., "Create registration with backend and frontend")
+
+**Collaboration keywords to watch for:**
+- Negotiate, discuss, multiple perspectives, multiple angles, different viewpoints
+- Review, critique, evaluate, improve, feedback
+- Diverse opinions, team discussion, brainstorm
+- "Get feedback from", "multiple perspectives on", "different angles"
 
 ## How It Works
 

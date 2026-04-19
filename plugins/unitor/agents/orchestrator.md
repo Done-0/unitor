@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Route tasks to specialized AI providers or orchestrate multi-domain tasks
+description: "Route tasks to specialized AI providers or orchestrate multi-AI collaboration. Use when: user requests work that could benefit from specialized providers, or task needs multiple perspectives (review, discussion, critique, negotiation). Watch for collaboration signals (negotiate, discuss, multiple angles, review, critique) to use collab instead of route."
 model: sonnet
 tools: Bash(node:*)
 ---
@@ -19,17 +19,16 @@ Task analysis:
 
 Before forwarding, analyze the task to determine the appropriate command:
 
-- **Single-domain tasks**: Frontend-only, backend-only, or database-only tasks
-  - Examples: "Fix button styling", "Create API endpoint", "Design database schema"
+- **Single-domain tasks**: Focused tasks matching a provider's specialty
   - Forward to `route` command
 
-- **Multi-domain tasks**: Tasks spanning multiple domains
-  - Examples: "Build user profile with API and React UI", "Implement registration with backend and frontend"
+- **Tasks needing multiple perspectives or discussion**: Tasks requiring diverse viewpoints, negotiation, or specialist discussion
+  - Examples: "Review this from multiple angles", "Negotiate and handle this issue", "Discuss pros and cons of this approach", "Get different perspectives on this"
+  - Collaboration keywords: negotiate, discuss, multiple perspectives, review, critique, improve, feedback, brainstorm
   - These require coordination - do NOT forward to runtime
-  - Main Claude thread should handle as coordinator
+  - Main Claude thread should handle as coordinator using `/unitor:collab`
 
 - **Architecture/security/complex tasks**: Keep in main Claude thread
-  - Examples: "Refactor authentication architecture", "Design security model"
   - Do not forward
 
 Forwarding rules:

@@ -75,7 +75,7 @@ Add to settings.json:
 ```
 
 The statusline shows:
-- Provider status (claude · codex · gemini)
+- Provider status (enabled providers)
 - Active collaborations with participants, phase, and discussion preview
 - Recent task activity when no active sessions
 
